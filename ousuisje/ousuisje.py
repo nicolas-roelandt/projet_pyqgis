@@ -24,6 +24,7 @@
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
+from qgis.gui import QgsMapToolEmitPoint
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -53,6 +54,9 @@ class OuSuisJe:
 
         ## Création d'un outil émettant un point au clic
         self.point_tool = QgsMapToolEmitPoint(self.canvas)
+
+        # Création de la boite de dialogue (après les traductions)
+        self.dlg = OuSuisJeDialog()
 
         # initialize locale
         locale = QSettings().value('locale/userLocale')[0:2]
@@ -164,18 +168,21 @@ class OuSuisJe:
 
         return action
 
+
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
         icon_path = ':/plugins/ousuisje/icon.png'
         self.add_action(
             icon_path,
-            text=self.tr(u'Affiche les coordonées du point cliqué'),
+            text=self.tr(u'Où suis-je ?'),
             callback=self.run,
             parent=self.iface.mainWindow())
 
         # will be set False in run()
         self.first_start = True
+        # connecte le signal quand le canvas a été cliqué pour lancer la méthode display_point
+        self.point_tool.canvasClicked.connect(self.display_point)
 
 
     def unload(self):
@@ -186,22 +193,26 @@ class OuSuisJe:
                 action)
             self.iface.removeToolBarIcon(action)
 
-
+    
     def run(self):
         """Run method that performs all the real work"""
-
-        # Create the dialog with elements (after translation) and keep reference
-        # Only create GUI ONCE in callback, so that it will only load when the plugin is started
+        
         if self.first_start == True:
             self.first_start = False
+            # Creer la boite de dialogue
             self.dlg = OuSuisJeDialog()
+            # connecte le signal quand le canvas a été cliqué pour lancer la méthode display_point
+            self.point_tool.canvasClicked.connect(self.display_point)
+        
+        # Défini ousuisje comme étant l'outil de carte actif
+        self.canvas.setMapTool(self.point_tool)
 
-        # show the dialog
-        self.dlg.show()
-        # Run the dialog event loop
-        result = self.dlg.exec_()
-        # See if OK was pressed
-        if result:
-            # Do something useful here - delete the line containing pass and
-            # substitute with your code.
-            pass
+
+    def display_point(self, point, button):
+        # Affiche les coordonnées du clic
+        
+        self.dlg.hide() # cache la boite de dialogue
+        coords = "{}, {}".format(point.x(), point.y()) ## formatage des coordonnées
+        self.dlg.lineEdit.setText(coords) # affichage des coordonnées
+        
+        self.dlg.show() # affiche de nouveau la boite de dialogue
