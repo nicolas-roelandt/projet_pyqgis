@@ -198,26 +198,34 @@ class Proximite:
 
         # Create the dialog with elements (after translation) and keep reference
         # Only create GUI ONCE in callback, so that it will only load when the plugin is started
-        # if self.first_start == True:
-        #     self.first_start = False
+        if self.first_start == True:
+            self.first_start = False
         self.dlg = ProximiteDialog()
+        self.dlg.button_OK.pressed.connect(self.exec)
 
         # show the dialog
         
         self.dlg.show()
-        self.dlg.button_OK.pressed.connect(self.exec)
+        
         # Run the dialog event loop
     
     def exec(self):
 
-        print("test")
+        print("Dans le run")
 
         # récupération des valeurs des paramètres
         source = self.dlg.coucheEntree.currentLayer()
+        print(source)
         superposition = self.dlg.coucheIntersec.currentLayer()
-        outputFile = self.dlg.fichierSortie.filePath()
-        print(outputFile)
+        print(superposition)
         bufferdist = self.dlg.distanceIntersec.value()
+        outputFile = self.dlg.fichierSortie.filePath()
+        
+        if outputFile == "":
+            outputFile = 'TEMPORARY_OUTPUT'
+        
+        print(outputFile)
+        
 
         print(bufferdist)
 
@@ -234,16 +242,16 @@ class Proximite:
         # feedback.pushInfo('Superposition CRS is {}'.format(superposition.sourceCrs().authid()))
 
         # # Vérification que les couches ont un SRC compatibles
-        # if source.sourceCrs().authid() != superposition.sourceCrs().authid():
-        #     # Si SRC différents, QGIS lève une exception et arrête l'algorithme.
-        #     raise QgsProcessingException(
-        #             self.tr('les couches doivent être dans le même système de référence de coordonnées.')
-        #             )
+        if source.sourceCrs().authid() != superposition.sourceCrs().authid():
+            # Si SRC différents, QGIS lève une exception et arrête l'algorithme.
+            raise QgsProcessingException(
+                    self.tr('les couches doivent être dans le même système de référence de coordonnées.')
+                    )
                     
         # Calcul du tampon            
-        tampon = processing.runAndLoadResults(
+        tampon = processing.run(
             "native:buffer",{
-                'INPUT': source,
+                'INPUT': superposition,
                 'DISTANCE' : bufferdist,
                 'SEGMENTS' :5,
                 'END CAP STYLE' : 0,
@@ -254,9 +262,9 @@ class Proximite:
                 })
             
         ## Intersection du tampon et de la couche source
-        intersection = processing.run(
+        intersection = processing.runAndLoadResults(
                 "native:intersection", 
-                {'INPUT': superposition,
+                {'INPUT': source,
                 'OVERLAY': tampon['OUTPUT'],
                 'INPUT_FIELDS':[],
                 'OVERLAY_FIELDS':[],
@@ -264,8 +272,9 @@ class Proximite:
 
         # Return the results of the algorithm. In this case our only result is
         # the intersection.
-
-        v = QgsVectorLayer(outputFile, "matthieu", "ogr")
-        QgsProject.instance().addMapLayer(v)
+        #if outputFile !=  'TEMPORARY_OUTPUT':
+        #    QgsProject.instance().addMapLayer(
+        #        QgsVectorLayer(outputFile, "Intersection", "ogr")
+        #        )
 
        
